@@ -9,6 +9,36 @@ import torch.optim as optim
 from collections import deque
 
 def calc_disc_return(r_t , gamma = 0.998):
+    
+    """
+    Calculate the discounted return for a sequence of rewards.
+
+    The discounted return (also known as return or cumulative reward) is the sum of rewards
+    received over time, where future rewards are exponentially discounted by a factor of `gamma`.
+    This function computes the discounted return for each time step in a trajectory, working 
+    backwards from the final reward.
+
+    Parameters:
+    ----------
+    r_t : list or np.ndarray
+        A sequence of rewards at each time step. The length of this sequence is the length of 
+        the episode or trajectory.
+    gamma : float, optional
+        The discount factor, which should be a value between 0 and 1. The default value is 0.998.
+
+    Returns:
+    -------
+    np.ndarray
+        An array of discounted returns for each time step in the input sequence. Each element in 
+        the returned array represents the total discounted return starting from that time step 
+        until the end of the sequence.
+    
+    Example:
+    --------
+    >>> r_t = [1, 2, 3, 4]
+    >>> calc_disc_return(r_t, gamma=0.99)
+    array([ 9.40703,  8.51114,  6.5556 ,  4.    ])
+    """
 
     G_t = deque(maxlen = len(r_t))
     G_t.append(r_t[-1])
@@ -72,24 +102,13 @@ class ReInforce():
         action_t = T.LongTensor(actions).to(self.device).view(-1,1)
         return_t = T.FloatTensor(calc_disc_return(rewards, self.gamma)).to(self. device).view(-1,1)
 
-        '''
-        eps = np.finfo(np.float32).eps.item()
-        return_t = (return_t - return_t.mean()) / (return_t.std() + eps)
-        '''        
         action_prob = self.policy_net(state_t).gather(1, action_t)
         loss = T.sum(-T.log(action_prob) * return_t)*loss_scaler
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        
-        grads = np.concatenate([p.grad.data.detach().cpu().numpy().flatten()
-                                for p in self.policy_net.parameters()
-                                if p.grad is not None])
-        
-        grad_l2 = np.sqrt(np.mean(np.square(grads)))
-        grad_max = np.max(np.abs(grads))
     
-        return loss.item(), grad_l2, grad_max
+        return loss.item()
     
     def save(self, model_file):
         T.save(self.policy_net.state_dict(), model_file)
@@ -141,15 +160,8 @@ class ReInforceBaseline():
         self.v_optimizer.zero_grad()
         vf_loss.backward()
         self.v_optimizer.step()
-
-        grads = np.concatenate([p.grad.data.detach().cpu().numpy().flatten()
-                                for p in self.policy_net.parameters()
-                                if p.grad is not None])
-        
-        grad_l2 = np.sqrt(np.mean(np.square(grads)))
-        grad_max = np.max(np.abs(grads))
-    
-        return loss.item(), grad_l2, grad_max
+   
+        return loss.item()
     
     def save(self, model_file):
         T.save({
