@@ -59,7 +59,7 @@ class PolicyNet(nn.Module):
         self.output = nn.Linear(self.lyr2, a_size)
 
     def forward(self, x):
-        x = T.clamp(x,-1.1,1.1)
+        #x = T.clamp(x,-1.1,1.1)
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
         return F.softmax(self.output(x),dim = 1)
@@ -72,7 +72,7 @@ class ValueNet(nn.Module):
         self.output = nn.Linear(lyr2, 1)
 
     def forward(self, x):
-        x = T.clamp(x,-1.1,1.1)
+        #x = T.clamp(x,-1.1,1.1)
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
         return self.output(x)
@@ -123,7 +123,8 @@ class ReInforceBaseline():
                  lyr1 = 256,
                  lyr2 = 512,
                  gamma = 0.99,
-                 lr = 0.001):
+                 pi_lr = 0.001,
+                 vf_lr = 0.0001):
         
         self.state_size = s_size
         self.action_size = a_size
@@ -134,9 +135,9 @@ class ReInforceBaseline():
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')  
         
         self.policy_net = PolicyNet(s_size, a_size, lyr1, lyr2).to(self.device)
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr = lr )
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr = pi_lr )
         self.value_net = ValueNet(s_size, lyr1, lyr2).to(self.device)
-        self.v_optimizer = optim.Adam(self.value_net.parameters(), lr = lr)
+        self.v_optimizer = optim.Adam(self.value_net.parameters(), lr = vf_lr)
         
     def train(self, states, rewards, actions, loss_scaler = 1):
         
@@ -161,7 +162,7 @@ class ReInforceBaseline():
         vf_loss.backward()
         self.v_optimizer.step()
    
-        return loss.item()
+        return loss.item(), adv_t[0]
     
     def save(self, model_file):
         T.save({
@@ -173,7 +174,7 @@ class ReInforceBaseline():
         checkpoint = T.load(model_file)
         self.policy_net.load_state_dict(checkpoint['policy_net_dict'])
         self.value_net.load_state_dict(checkpoint['value_net_dict'])
-
+'''
 class ActorCritic():
     def __init__(self,
                  s_size,
@@ -217,8 +218,8 @@ class ActorCritic():
         critic_loss = delta**2
         critic_loss.backward()
         self.cr_optimizer.step()
-
-class ActorCriticV1():
+'''
+class ActorCritic():
     def __init__(self,
                  s_size,
                  a_size,
